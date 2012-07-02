@@ -1,5 +1,6 @@
 import sys
 import os
+import urllib
 
 from PySide import QtCore, QtGui, QtWebKit, QtNetwork
 
@@ -17,16 +18,25 @@ class Browser(QtGui.QMainWindow):
         self.manager.finished.connect(self.finished)
 
     def download(self, reply):
-        self.request = QtNetwork.QNetworkRequest(reply.url())
+        self.request = reply.request()
+        self.request.setUrl(reply.url())
         self.reply = self.manager.get(self.request)
 
     def finished(self):
-        path = os.path.expanduser(os.path.join('~', unicode(self.reply.url().path()).split('/')[-1]))
+        path = os.path.expanduser(
+            os.path.join('~', 
+                         unicode(self.reply.url().path()).split('/')[-1]))
+        if self.reply.hasRawHeader('Content-Disposition'):
+            cnt_dis = self.reply.rawHeader('Content-Disposition').data()
+            if cnt_dis.startswith('attachment'):
+                path = cnt_dis.split('=')[1]
+
         destination = QtGui.QFileDialog.getSaveFileName(self, "Save", path)
         if destination:
-            url = reply.url().toString()
-            downloaded_file = urllib.urlretrieve(url)[0]
-            os.rename(downloaded_file, destination)
+            f = open(destination[0], 'wb')
+            f.write(self.reply.readAll())
+            f.flush()
+            f.close()
 
 
 if __name__ == '__main__':
