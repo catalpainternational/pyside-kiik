@@ -1,8 +1,24 @@
 import sys
 import os
-import urllib
-
 from PySide import QtCore, QtGui, QtWebKit, QtNetwork
+
+
+class CustomWebView(QtWebKit.QWebView):
+    def __init__(self, parent=None):
+        super(CustomWebView, self).__init__(parent)
+
+        self.previewer = QtGui.QPrintPreviewDialog(self)
+        self.previewer.connect(QtCore.SIGNAL('paintRequested(QPrinter *)'),
+                               self.print_)
+        self.do_print = QtGui.QShortcut(
+            "Ctrl+p", self, activated=self.previewer.exec_)
+
+    def contextMenuEvent(self, event):
+        menu = QtGui.QMenu(self)
+        act_print = menu.addAction("&Print...")
+        self.connect(act_print, QtCore.SIGNAL("triggered()"),
+                     self.previewer.exec_)
+        menu.exec_(event.globalPos())
 
 
 class Browser(QtGui.QMainWindow):
@@ -10,7 +26,7 @@ class Browser(QtGui.QMainWindow):
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
 
-        self.web = QtWebKit.QWebView()
+        self.web = CustomWebView()
         self.web.page().setForwardUnsupportedContent(True)
         self.web.page().unsupportedContent.connect(self.download)
 
@@ -24,7 +40,7 @@ class Browser(QtGui.QMainWindow):
 
     def finished(self):
         path = os.path.expanduser(
-            os.path.join('~', 
+            os.path.join('~',
                          unicode(self.reply.url().path()).split('/')[-1]))
         if self.reply.hasRawHeader('Content-Disposition'):
             cnt_dis = self.reply.rawHeader('Content-Disposition').data()
